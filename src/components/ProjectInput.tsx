@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Play, RotateCcw, FolderOpen } from 'lucide-react';
 
 interface ProjectInputProps {
   onStart: (name: string, description: string) => void;
@@ -19,46 +20,46 @@ const ProjectInput: React.FC<ProjectInputProps> = ({ onStart, isRunning, onReset
   };
 
   const examples = [
-    { name: 'Task Manager App', desc: 'A collaborative task management application with real-time updates, team assignments, and progress tracking.' },
-    { name: 'AI Chat Interface', desc: 'An intelligent chat application with conversation history, multiple AI models support, and export functionality.' },
-    { name: 'E-commerce Dashboard', desc: 'An admin dashboard for e-commerce with sales analytics, inventory management, and order processing.' },
+    { name: 'Task Manager', desc: 'A collaborative task management app with real-time updates and team assignments.' },
+    { name: 'AI Chat Interface', desc: 'Chat application with conversation history, multiple AI models, and export features.' },
+    { name: 'E-commerce Dashboard', desc: 'Admin dashboard with sales analytics, inventory management, and order processing.' },
   ];
 
   return (
     <div className="w-full">
       {!hasStarted ? (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Project Name</label>
+            <label className="block text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Project Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Task Manager App"
-              className="w-full px-4 py-3 rounded-xl bg-gray-800/50 border border-gray-700 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all text-sm"
+              placeholder="My Awesome App"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder-gray-600 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Project Description</label>
+            <label className="block text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe what you want to build..."
               rows={3}
-              className="w-full px-4 py-3 rounded-xl bg-gray-800/50 border border-gray-700 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none transition-all text-sm resize-none"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder-gray-600 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all text-sm resize-none"
             />
           </div>
 
           {/* Quick examples */}
           <div>
-            <p className="text-xs text-gray-500 mb-2">Quick start examples:</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-[10px] text-gray-700 mb-1.5 uppercase tracking-wider">Quick start</p>
+            <div className="flex flex-wrap gap-1.5">
               {examples.map((ex) => (
                 <button
                   key={ex.name}
                   type="button"
                   onClick={() => { setName(ex.name); setDescription(ex.desc); }}
-                  className="text-[11px] px-3 py-1.5 rounded-lg bg-gray-800/50 border border-gray-700/50 text-gray-400 hover:text-blue-400 hover:border-blue-500/30 transition-all"
+                  className="text-[11px] px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-gray-500 hover:text-violet-400 hover:border-violet-500/30 transition-all"
                 >
                   {ex.name}
                 </button>
@@ -69,24 +70,28 @@ const ProjectInput: React.FC<ProjectInputProps> = ({ onStart, isRunning, onReset
           <button
             type="submit"
             disabled={!name.trim() || !description.trim()}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm hover:from-blue-500 hover:to-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
+            className="w-full py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-blue-600 text-white font-medium text-sm hover:from-violet-500 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
-            🚀 Start Multi-Agent Pipeline
+            <Play className="w-3.5 h-3.5" />
+            Start Pipeline
           </button>
         </form>
       ) : (
-        <div className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-lg">📁</span>
-            <h3 className="text-sm font-semibold text-white">{name}</h3>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+            <FolderOpen className="w-4 h-4 text-violet-400" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xs font-medium text-white truncate">{name}</h3>
+              <p className="text-[11px] text-gray-600 truncate">{description}</p>
+            </div>
           </div>
-          <p className="text-xs text-gray-400 line-clamp-2">{description}</p>
           {!isRunning && (
             <button
               onClick={onReset}
-              className="mt-2 px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 text-xs text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-gray-400 hover:text-white hover:bg-white/[0.06] transition-all"
             >
-              🔄 New Project
+              <RotateCcw className="w-3 h-3" />
+              New Project
             </button>
           )}
         </div>

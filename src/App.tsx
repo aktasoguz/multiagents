@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
+import {
+  Terminal, Settings, LogOut, Users, Zap, GitBranch,
+  MessageSquare, ChevronRight, Activity, FolderOpen,
+  BookOpen, Bell, Search
+} from 'lucide-react';
 import { agents } from './data/agents';
 import { useSimulation } from './hooks/useSimulation';
+import { getSession, logout, User } from './services/auth';
 import { loadAPIConfig, APIConfig } from './services/api';
 import Pipeline from './components/Pipeline';
 import AgentCard from './components/AgentCard';
@@ -8,11 +14,15 @@ import ChatPanel from './components/ChatPanel';
 import ArtifactViewer from './components/ArtifactViewer';
 import ProjectInput from './components/ProjectInput';
 import SettingsModal from './components/SettingsModal';
+import CLIGuide from './components/CLIGuide';
+import AuthPage from './components/AuthPage';
 import { Message } from './types';
 
 function App() {
+  const [user, setUser] = useState<User | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [apiConfig, setApiConfig] = useState<APIConfig | null>(null);
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'cli'>('pipeline');
 
   const {
     messages,
@@ -29,9 +39,16 @@ function App() {
   } = useSimulation();
 
   useEffect(() => {
+    const session = getSession();
+    setUser(session);
     const config = loadAPIConfig();
     setApiConfig(config);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+  };
 
   const handleConfigChange = (config: APIConfig) => {
     setApiConfig(config);
@@ -41,7 +58,7 @@ function App() {
   const handleStart = (name: string, desc: string) => {
     if (!apiConfig || !apiConfig.apiKey) {
       setSettingsOpen(true);
-      setError('Please configure your API settings first');
+      setError('Configure your API key first');
       return;
     }
     setError(null);
@@ -54,197 +71,224 @@ function App() {
     }
   };
 
+  // Not authenticated
+  if (!user) {
+    return <AuthPage onAuth={() => setUser(getSession())} />;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800/50 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-lg font-bold shadow-lg shadow-blue-500/20">
-              M
+    <div className="min-h-screen bg-[#0a0a0f] text-white flex">
+      {/* Sidebar */}
+      <aside className="w-60 border-r border-white/[0.06] flex flex-col bg-[#0c0c14]">
+        {/* Logo */}
+        <div className="p-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+              <Terminal className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                MetaGPT Browser
-              </h1>
-              <p className="text-[10px] text-gray-500">Multi-Agent Software Company Simulation</p>
+              <h1 className="text-sm font-bold text-white tracking-tight">MultiAgent</h1>
+              <p className="text-[10px] text-gray-600">Platform v0.1.0</p>
             </div>
           </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-3 space-y-1">
+          <button
+            onClick={() => setActiveTab('pipeline')}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+              activeTab === 'pipeline'
+                ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            Pipeline
+          </button>
+          <button
+            onClick={() => setActiveTab('cli')}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+              activeTab === 'cli'
+                ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            CLI Guide
+          </button>
+
+          <div className="pt-4 pb-2">
+            <p className="px-3 text-[10px] text-gray-700 uppercase tracking-wider font-medium">Resources</p>
+          </div>
+          <a
+            href="https://github.com/FoundationAgents/MetaGPT"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs text-gray-500 hover:text-gray-300 hover:bg-white/[0.03] transition-all"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Documentation
+          </a>
+          <a
+            href="https://github.com/FoundationAgents/MetaGPT"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs text-gray-500 hover:text-gray-300 hover:bg-white/[0.03] transition-all"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            GitHub
+          </a>
+        </nav>
+
+        {/* User */}
+        <div className="p-3 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2.5 px-2 py-1.5">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-white/[0.08] flex items-center justify-center">
+              <span className="text-[10px] font-bold text-violet-300">{user.username[0].toUpperCase()}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-300 truncate">{user.username}</p>
+              <p className="text-[10px] text-gray-600 truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-md text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+              title="Logout"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Bar */}
+        <header className="h-12 border-b border-white/[0.06] flex items-center justify-between px-5 bg-[#0c0c14]/50">
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <FolderOpen className="w-3 h-3" />
+              <span>workspace</span>
+              <ChevronRight className="w-3 h-3" />
+              <span className="text-gray-400">{activeTab === 'pipeline' ? 'Pipeline' : 'CLI Guide'}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Status indicators */}
             {isRunning && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                <span className="text-xs text-blue-400">Running</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-500/10 border border-violet-500/20">
+                <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-pulse" />
+                <span className="text-[11px] text-violet-400">Running</span>
               </div>
             )}
             {!isRunning && currentStep >= 4 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-xs text-green-400">Completed</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                <span className="text-[11px] text-emerald-400">Complete</span>
               </div>
             )}
-            
-            {/* API Status */}
+
+            {/* API status */}
             <button
               onClick={() => setSettingsOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] transition-all ${
                 apiConfig?.apiKey
-                  ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:border-green-500/50'
-                  : 'bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-500/50 animate-pulse'
+                  ? 'bg-white/[0.02] border-white/[0.06] text-gray-500 hover:border-white/[0.12]'
+                  : 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:border-amber-500/40'
               }`}
             >
-              <div className={`w-1.5 h-1.5 rounded-full ${apiConfig?.apiKey ? 'bg-green-500' : 'bg-red-500'}`} />
-              {apiConfig?.apiKey ? `${apiConfig.provider}` : 'No API Key'}
-            </button>
-
-            <a
-              href="https://github.com/FoundationAgents/MetaGPT"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-              GitHub
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Error Banner */}
-        {error && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 animate-fadeIn">
-            <span className="text-lg">⚠️</span>
-            <p className="text-sm text-red-400 flex-1">{error}</p>
-            <button
-              onClick={() => setError(null)}
-              className="text-xs text-red-400 hover:text-red-300 transition-colors"
-            >
-              ✕
+              <Settings className="w-3 h-3" />
+              {apiConfig?.apiKey ? `${apiConfig.provider} • ${apiConfig.model}` : 'Setup API'}
             </button>
           </div>
-        )}
+        </header>
 
-        {/* No API Key Banner */}
-        {!apiConfig?.apiKey && !error && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 animate-fadeIn">
-            <span className="text-lg">🔑</span>
-            <p className="text-sm text-yellow-400 flex-1">
-              Configure your API key to start using real AI agents
-            </p>
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-xs text-yellow-400 hover:bg-yellow-500/30 transition-all"
-            >
-              Setup API
-            </button>
-          </div>
-        )}
+        {/* Content Area */}
+        <main className="flex-1 overflow-hidden">
+          {activeTab === 'cli' ? (
+            <div className="p-6 max-w-2xl">
+              <CLIGuide />
+            </div>
+          ) : (
+            <div className="h-full flex flex-col">
+              {/* Error Banner */}
+              {error && (
+                <div className="mx-5 mt-4 flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <Zap className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                  <p className="text-xs text-red-400 flex-1">{error}</p>
+                  <button onClick={() => setError(null)} className="text-xs text-red-400/70 hover:text-red-400">✕</button>
+                </div>
+              )}
 
-        {/* Pipeline Visualization */}
-        <section className="bg-gray-900/50 border border-gray-800/50 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800/50 flex items-center gap-2">
-            <span className="text-sm">⚡</span>
-            <h2 className="text-sm font-semibold text-gray-300">Agent Pipeline</h2>
-            <span className="text-[10px] text-gray-600 ml-2">Standardized Procedural Workflow</span>
-          </div>
-          <Pipeline steps={pipelineSteps} />
-        </section>
-
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Panel - Project Input & Agents */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* Project Input */}
-            <section className="bg-gray-900/50 border border-gray-800/50 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm">🎯</span>
-                <h2 className="text-sm font-semibold text-gray-300">Project Brief</h2>
+              {/* Pipeline */}
+              <div className="mx-5 mt-4 rounded-lg bg-white/[0.02] border border-white/[0.06] overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-white/[0.06] flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5 text-gray-600" />
+                  <span className="text-xs font-medium text-gray-400">Workflow Pipeline</span>
+                </div>
+                <Pipeline steps={pipelineSteps} />
               </div>
-              <ProjectInput
-                onStart={handleStart}
-                isRunning={isRunning}
-                onReset={reset}
-                hasStarted={currentStep >= 0}
-              />
-            </section>
 
-            {/* Agents */}
-            <section className="bg-gray-900/50 border border-gray-800/50 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm">🤖</span>
-                <h2 className="text-sm font-semibold text-gray-300">AI Agents</h2>
-                <span className="text-[10px] text-gray-600 ml-auto">{agents.length} agents</span>
-              </div>
-              <div className="space-y-3">
-                {agents.map((agent, index) => (
-                  <AgentCard
-                    key={agent.id}
-                    agent={agent}
-                    isActive={currentStep === index}
-                    isCompleted={currentStep > index}
+              {/* Main Grid */}
+              <div className="flex-1 grid grid-cols-12 gap-4 p-5 min-h-0">
+                {/* Left Column */}
+                <div className="col-span-3 space-y-4 overflow-y-auto">
+                  {/* Project */}
+                  <div className="rounded-lg bg-white/[0.02] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FolderOpen className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Project</span>
+                    </div>
+                    <ProjectInput
+                      onStart={handleStart}
+                      isRunning={isRunning}
+                      onReset={reset}
+                      hasStarted={currentStep >= 0}
+                    />
+                  </div>
+
+                  {/* Agents */}
+                  <div className="rounded-lg bg-white/[0.02] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Agents</span>
+                      <span className="text-[10px] text-gray-700 ml-auto">{agents.length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {agents.map((agent, index) => (
+                        <AgentCard
+                          key={agent.id}
+                          agent={agent}
+                          isActive={currentStep === index}
+                          isCompleted={currentStep > index}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Chat */}
+                <div className="col-span-9 rounded-lg bg-white/[0.02] border border-white/[0.06] overflow-hidden flex flex-col min-h-0">
+                  <ChatPanel
+                    messages={messages}
+                    onArtifactClick={handleArtifactClick}
+                    isRunning={isRunning}
                   />
-                ))}
+                </div>
               </div>
-            </section>
-          </div>
-
-          {/* Right Panel - Chat */}
-          <div className="lg:col-span-8">
-            <section className="bg-gray-900/50 border border-gray-800/50 rounded-2xl h-[600px] flex flex-col overflow-hidden">
-              <ChatPanel
-                messages={messages}
-                onArtifactClick={handleArtifactClick}
-                isRunning={isRunning}
-              />
-            </section>
-          </div>
-        </div>
-
-        {/* Info Section */}
-        <section className="bg-gray-900/30 border border-gray-800/30 rounded-2xl p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                <span>🔄</span> SOP-Driven
-              </h3>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                MetaGPT uses Standardized Operating Procedures to coordinate multiple AI agents, 
-                mimicking a real software company's workflow.
-              </p>
             </div>
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                <span>📄</span> Structured Output
-              </h3>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Each agent produces structured artifacts (PRDs, designs, code, tests) 
-                that feed into the next agent's workflow.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                <span>🧠</span> Real AI Agents
-              </h3>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Connects to OpenAI or Anthropic APIs. Each agent uses specialized prompts 
-                and passes context to the next agent in the pipeline.
-              </p>
-            </div>
-          </div>
-        </section>
-      </main>
+          )}
+        </main>
+      </div>
 
-      {/* Settings Modal */}
+      {/* Modals */}
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onConfigChange={handleConfigChange}
       />
 
-      {/* Artifact Viewer Modal */}
       {selectedArtifact && (
         <ArtifactViewer
           artifact={selectedArtifact}
