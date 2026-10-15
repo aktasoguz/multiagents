@@ -5,9 +5,10 @@ import { getAgent } from '../data/agents';
 interface ChatPanelProps {
   messages: Message[];
   onArtifactClick: (message: Message) => void;
+  isRunning?: boolean;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onArtifactClick }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onArtifactClick, isRunning }) => {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700/50">
@@ -17,10 +18,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onArtifactClick }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && !isRunning && (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <span className="text-4xl mb-3">💬</span>
             <p className="text-sm">Start a project to see agent communications</p>
+            <p className="text-xs text-gray-600 mt-2">Configure your API key first (⚙️)</p>
+          </div>
+        )}
+
+        {messages.length === 0 && isRunning && (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="flex gap-1 mb-3">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <p className="text-sm">Initializing agents...</p>
           </div>
         )}
 
@@ -49,7 +62,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onArtifactClick }) => {
                 </span>
               </div>
 
-              <p className="text-sm text-gray-300 leading-relaxed">{msg.content}</p>
+              {msg.status === 'thinking' ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-xs text-blue-400">Thinking...</span>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-300 leading-relaxed">{msg.content}</p>
+              )}
 
               {msg.artifact && (
                 <button

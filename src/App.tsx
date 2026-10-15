@@ -1,13 +1,19 @@
+import { useState, useEffect } from 'react';
 import { agents } from './data/agents';
 import { useSimulation } from './hooks/useSimulation';
+import { loadAPIConfig, APIConfig } from './services/api';
 import Pipeline from './components/Pipeline';
 import AgentCard from './components/AgentCard';
 import ChatPanel from './components/ChatPanel';
 import ArtifactViewer from './components/ArtifactViewer';
 import ProjectInput from './components/ProjectInput';
+import SettingsModal from './components/SettingsModal';
 import { Message } from './types';
 
 function App() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [apiConfig, setApiConfig] = useState<APIConfig | null>(null);
+
   const {
     messages,
     isRunning,
@@ -18,7 +24,29 @@ function App() {
     pipelineSteps,
     startSimulation,
     reset,
+    error,
+    setError,
   } = useSimulation();
+
+  useEffect(() => {
+    const config = loadAPIConfig();
+    setApiConfig(config);
+  }, []);
+
+  const handleConfigChange = (config: APIConfig) => {
+    setApiConfig(config);
+    setSettingsOpen(false);
+  };
+
+  const handleStart = (name: string, desc: string) => {
+    if (!apiConfig || !apiConfig.apiKey) {
+      setSettingsOpen(true);
+      setError('Please configure your API settings first');
+      return;
+    }
+    setError(null);
+    startSimulation(name, desc);
+  };
 
   const handleArtifactClick = (msg: Message) => {
     if (msg.artifact) {
@@ -55,6 +83,20 @@ function App() {
                 <span className="text-xs text-green-400">Completed</span>
               </div>
             )}
+            
+            {/* API Status */}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-all ${
+                apiConfig?.apiKey
+                  ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:border-green-500/50'
+                  : 'bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-500/50 animate-pulse'
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${apiConfig?.apiKey ? 'bg-green-500' : 'bg-red-500'}`} />
+              {apiConfig?.apiKey ? `${apiConfig.provider}` : 'No API Key'}
+            </button>
+
             <a
               href="https://github.com/FoundationAgents/MetaGPT"
               target="_blank"
@@ -71,6 +113,36 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Error Banner */}
+        {error && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 animate-fadeIn">
+            <span className="text-lg">⚠️</span>
+            <p className="text-sm text-red-400 flex-1">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="text-xs text-red-400 hover:text-red-300 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* No API Key Banner */}
+        {!apiConfig?.apiKey && !error && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 animate-fadeIn">
+            <span className="text-lg">🔑</span>
+            <p className="text-sm text-yellow-400 flex-1">
+              Configure your API key to start using real AI agents
+            </p>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-xs text-yellow-400 hover:bg-yellow-500/30 transition-all"
+            >
+              Setup API
+            </button>
+          </div>
+        )}
+
         {/* Pipeline Visualization */}
         <section className="bg-gray-900/50 border border-gray-800/50 rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-800/50 flex items-center gap-2">
@@ -92,7 +164,7 @@ function App() {
                 <h2 className="text-sm font-semibold text-gray-300">Project Brief</h2>
               </div>
               <ProjectInput
-                onStart={startSimulation}
+                onStart={handleStart}
                 isRunning={isRunning}
                 onReset={reset}
                 hasStarted={currentStep >= 0}
@@ -125,6 +197,7 @@ function App() {
               <ChatPanel
                 messages={messages}
                 onArtifactClick={handleArtifactClick}
+                isRunning={isRunning}
               />
             </section>
           </div>
@@ -153,16 +226,23 @@ function App() {
             </div>
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                <span>🧠</span> Role Specialization
+                <span>🧠</span> Real AI Agents
               </h3>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Agents have distinct roles and expertise - from product management 
-                to architecture to engineering to QA testing.
+                Connects to OpenAI or Anthropic APIs. Each agent uses specialized prompts 
+                and passes context to the next agent in the pipeline.
               </p>
             </div>
           </div>
         </section>
       </main>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onConfigChange={handleConfigChange}
+      />
 
       {/* Artifact Viewer Modal */}
       {selectedArtifact && (
