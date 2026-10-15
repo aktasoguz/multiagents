@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
-  Terminal, Settings, LogOut, Users, Zap, GitBranch,
-  MessageSquare, ChevronRight, Activity, FolderOpen,
-  BookOpen, Bell, Search
+  Terminal, Settings, Users, Zap, GitBranch,
+  FolderOpen, BookOpen, Activity, History, Trash2, Plus
 } from 'lucide-react';
 import { agents } from './data/agents';
 import { useSimulation } from './hooks/useSimulation';
-import { getSession, logout, User } from './services/auth';
 import { loadAPIConfig, APIConfig } from './services/api';
 import Pipeline from './components/Pipeline';
 import AgentCard from './components/AgentCard';
@@ -15,14 +13,43 @@ import ArtifactViewer from './components/ArtifactViewer';
 import ProjectInput from './components/ProjectInput';
 import SettingsModal from './components/SettingsModal';
 import CLIGuide from './components/CLIGuide';
-import AuthPage from './components/AuthPage';
-import { Message } from './types';
+import { Message, Project } from './types';
+
+// Memory management
+const PROJECTS_KEY = 'map_projects';
+const CURRENT_PROJECT_KEY = 'map_current_project';
+
+const loadProjects = (): Project[] => {
+  try {
+    const stored = localStorage.getItem(PROJECTS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveProjects = (projects: Project[]) => {
+  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+};
+
+const loadCurrentProjectId = (): string | null => {
+  return localStorage.getItem(CURRENT_PROJECT_KEY);
+};
+
+const saveCurrentProjectId = (id: string | null) => {
+  if (id) {
+    localStorage.setItem(CURRENT_PROJECT_KEY, id);
+  } else {
+    localStorage.removeItem(CURRENT_PROJECT_KEY);
+  }
+};
 
 function App() {
-  const [user, setUser] = useState<User | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [apiConfig, setApiConfig] = useState<APIConfig | null>(null);
-  const [activeTab, setActiveTab] = useState<'pipeline' | 'cli'>('pipeline');
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'cli' | 'history'>('pipeline');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
   const {
     messages,
@@ -39,16 +66,55 @@ function App() {
   } = useSimulation();
 
   useEffect(() => {
-    const session = getSession();
-    setUser(session);
     const config = loadAPIConfig();
     setApiConfig(config);
+    
+    const savedProjects = loadProjects();
+    setProjects(savedProjects);
+    
+    const savedCurrentId = loadCurrentProjectId();
+    if (savedCurrentId) {
+      setCurrentProjectId(savedCurrentId);
+    }
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    setUser(null);
-  };
+  // Save project state when messages change
+  useEffect(() => {
+    if (messages.length > 0 && projectName) {
+      const existingProject = projects.find(p => p.id === currentProjectId);
+      
+      const status: 'idle' | 'running' | 'completed' = isRunning ? 'running' : currentStep >= 4 ? 'completed' : 'idle';
+      
+      if (existingProject) {
+        // Update existing project
+        const updatedProjects = projects.map(p => 
+          p.id === currentProjectId 
+            ? { ...p, messages, name: projectName, status }
+            : p
+        );
+        setProjects(updatedProjects);
+        saveProjects(updatedProjects);
+      } else {
+        // Create new project
+        const newProject: Project = {
+          id: Date.now().toString(),
+          name: projectName,
+          description: '',
+          status,
+          currentStep,
+          messages,
+          artifacts: messages.filter(m => m.artifact).map(m => m.artifact!),
+          createdAt: new Date().toISOString(),
+        };
+        
+        const updatedProjects = [...projects, newProject];
+        setProjects(updatedProjects);
+        saveProjects(updatedProjects);
+        setCurrentProjectId(newProject.id);
+        saveCurrentProjectId(newProject.id);
+      }
+    }
+  }, [messages, projectName, isRunning, currentStep]);
 
   const handleConfigChange = (config: APIConfig) => {
     setApiConfig(config);
@@ -71,10 +137,28 @@ function App() {
     }
   };
 
-  // Not authenticated
-  if (!user) {
-    return <AuthPage onAuth={() => setUser(getSession())} />;
-  }
+  const handleNewProject = () => {
+    reset();
+    setCurrentProjectId(null);
+    saveCurrentProjectId(null);
+  };
+
+  const handleLoadProject = (project: Project) => {
+    setCurrentProjectId(project.id);
+    saveCurrentProjectId(project.id);
+    // TODO: Load project messages into simulation
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    const updatedProjects = projects.filter(p => p.id !== projectId);
+    setProjects(updatedProjects);
+    saveProjects(updatedProjects);
+    
+    if (currentProjectId === projectId) {
+      setCurrentProjectId(null);
+      saveCurrentProjectId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white flex">
@@ -105,6 +189,22 @@ function App() {
           >
             <Activity className="w-3.5 h-3.5" />
             Pipeline
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+              activeTab === 'history'
+                ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            History
+            {projects.length > 0 && (
+              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-gray-500">
+                {projects.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('cli')}
@@ -141,23 +241,10 @@ function App() {
           </a>
         </nav>
 
-        {/* User */}
+        {/* Footer */}
         <div className="p-3 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5 px-2 py-1.5">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-white/[0.08] flex items-center justify-center">
-              <span className="text-[10px] font-bold text-violet-300">{user.username[0].toUpperCase()}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-300 truncate">{user.username}</p>
-              <p className="text-[10px] text-gray-600 truncate">{user.email}</p>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-md text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-              title="Logout"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+          <div className="px-2 py-1.5 text-[10px] text-gray-700 text-center">
+            Local Mode • No Login Required
           </div>
         </div>
       </aside>
@@ -170,8 +257,10 @@ function App() {
             <div className="flex items-center gap-1.5 text-xs text-gray-600">
               <FolderOpen className="w-3 h-3" />
               <span>workspace</span>
-              <ChevronRight className="w-3 h-3" />
-              <span className="text-gray-400">{activeTab === 'pipeline' ? 'Pipeline' : 'CLI Guide'}</span>
+              <span className="text-gray-700 mx-1">/</span>
+              <span className="text-gray-400">
+                {activeTab === 'pipeline' ? 'Pipeline' : activeTab === 'history' ? 'History' : 'CLI Guide'}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -209,6 +298,71 @@ function App() {
           {activeTab === 'cli' ? (
             <div className="p-6 max-w-2xl">
               <CLIGuide />
+            </div>
+          ) : activeTab === 'history' ? (
+            <div className="p-6 max-w-4xl">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Project History</h2>
+                  <p className="text-xs text-gray-600 mt-1">{projects.length} projects saved locally</p>
+                </div>
+                <button
+                  onClick={handleNewProject}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-600 text-xs text-white font-medium hover:bg-violet-500 transition-all"
+                >
+                  <Plus className="w-3 h-3" />
+                  New Project
+                </button>
+              </div>
+
+              {projects.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-600">
+                  <History className="w-12 h-12 mb-3 text-gray-700" />
+                  <p className="text-sm">No projects yet</p>
+                  <p className="text-xs text-gray-700 mt-1">Start a new project from the Pipeline tab</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="group flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.1] transition-all"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-white truncate">{project.name}</h3>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className={`text-[11px] ${
+                            project.status === 'completed' ? 'text-emerald-400' :
+                            project.status === 'running' ? 'text-violet-400' : 'text-gray-600'
+                          }`}>
+                            {project.status}
+                          </span>
+                          <span className="text-[11px] text-gray-700">
+                            {project.messages.length} messages
+                          </span>
+                          <span className="text-[11px] text-gray-700">
+                            {new Date(project.messages[0]?.timestamp || project.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleLoadProject(project)}
+                          className="px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] text-gray-400 hover:text-white hover:bg-white/[0.08] transition-all"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProject(project.id)}
+                          className="p-1.5 rounded-md text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-full flex flex-col">

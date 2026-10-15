@@ -36,6 +36,7 @@ export interface Project {
   currentStep: number;
   messages: Message[];
   artifacts: Artifact[];
+  createdAt?: string;
 }
 
 export type PipelineStep = {
